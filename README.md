@@ -35,7 +35,7 @@ Website =
 Description = 
 ```
 
-### plungin_name.py
+### plugin_name.py
 
 The python file that contains the logic of the plugin. This needs to extend the InputPugin class and implement at minimum a number of methods, so you should define this like below (see inline comments): 
 

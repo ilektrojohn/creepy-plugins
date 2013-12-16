@@ -42,9 +42,9 @@ The python file that contains the logic of the plugin. This needs to extend the 
 ```python
 from models.InputPlugin import InputPlugin
 
-class plugin_name(InputPlugin):
+class PluginName(InputPlugin):
   
-  name="yourshortname"
+  name="plugin_name"
   '''
   If your plugin configuration needs to invoke a wizard 
   (for example for oAuth authorization) this must be set to true

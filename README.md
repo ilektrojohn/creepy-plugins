@@ -143,10 +143,10 @@ key5 = True
 
 ```
 
-The string_options and boolean_options  will come up as configuration options in the Plugin Configuration dialog
-The search_string_options and search_boolean_options will be available as search options in the New Project Wizard
+The `string_options` and `boolean_options`  will come up as configuration options in the Plugin Configuration dialog
+The `search_string_options` and `search_boolean_options` will be available as search options in the New Project Wizard
 
-If you need a value to be masked in the GUI ( i.e. passwords, access tokens etc ) , prefix the key with hidden_ and
+If you need a value to be masked in the GUI ( i.e. passwords, access tokens etc ) , prefix the key with `hidden_` and
 cree.py will take care of it. 
 
 ### plugin_name.labels file ( optional ) 

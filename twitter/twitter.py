@@ -1,16 +1,20 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 from models.InputPlugin import InputPlugin
 import tweepy
 import logging
 import os
 import urllib
-from PyQt4 import QtGui, QtWebKit, QtCore
-from tweepy import Cursor, TweepError
+from PyQt4.QtGui import QWizard, QWizardPage, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QMessageBox
+from PyQt4.QtCore import QUrl
+from PyQt4.QtWebKit import QWebView
+from tweepy import Cursor
 from configobj import ConfigObj
 
 #set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('creepy_main.log')
+fh = logging.FileHandler(os.path.join(os.getcwd(),'creepy_main.log'))
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
@@ -81,25 +85,22 @@ class Twitter(InputPlugin):
         try:
             oAuthHandler = tweepy.OAuthHandler(self.options_string['hidden_application_key'], self.options_string['hidden_application_secret'])
             authorizationURL = oAuthHandler.get_authorization_url(True)
+            self.wizard = QWizard()
+            page1 = QWizardPage()
+            page2 = QWizardPage()
+            layout1 = QVBoxLayout()
+            layout2 = QVBoxLayout()
+            layoutInputPin = QHBoxLayout()
             
-            
-            
-            wizard = QtGui.QWizard()
-            page1 = QtGui.QWizardPage()
-            page2 = QtGui.QWizardPage()
-            layout1 = QtGui.QVBoxLayout()
-            layout2 = QtGui.QVBoxLayout()
-            layoutInputPin = QtGui.QHBoxLayout()
-            
-            label1a = QtGui.QLabel("Click next to connect to twitter.com . Please login with your account and follow the instructions in order to authorize creepy")
-            label2a = QtGui.QLabel("Copy the PIN that you will receive once you authorize cree.py in the field below and click finish")
-            pinLabel = QtGui.QLabel("PIN")
-            inputPin = QtGui.QLineEdit()
+            label1a = QLabel("Click next to connect to twitter.com . Please login with your account and follow the instructions in order to authorize creepy")
+            label2a = QLabel("Copy the PIN that you will receive once you authorize cree.py in the field below and click finish")
+            pinLabel = QLabel("PIN")
+            inputPin = QLineEdit()
             inputPin.setObjectName("inputPin")
             
             
-            html = QtWebKit.QWebView()
-            html.load(QtCore.QUrl(authorizationURL))
+            html = QWebView()
+            html.load(QUrl(authorizationURL))
             
             layout1.addWidget(label1a)
             layout2.addWidget(html)
@@ -111,13 +112,13 @@ class Twitter(InputPlugin):
             page1.setLayout(layout1)
             page2.setLayout(layout2)
             page2.registerField("inputPin*", inputPin)
-            wizard.addPage(page1)
-            wizard.addPage(page2)
-            wizard.resize(800,600)
+            self.wizard.addPage(page1)
+            self.wizard.addPage(page2)
+            self.wizard.resize(800,600)
             
-            if wizard.exec_():
+            if self.wizard.exec_():
                 try:
-                    oAuthHandler.get_access_token(str(wizard.field("inputPin").toString()).strip())
+                    oAuthHandler.get_access_token(str(self.wizard.field("inputPin").toString()).strip())
                     access_token = oAuthHandler.access_token.key
                     access_token_secret = oAuthHandler.access_token.secret
                     self.options_string['hidden_access_token'] = access_token
@@ -125,14 +126,17 @@ class Twitter(InputPlugin):
                     self.config.write()
                 except Exception, err:
                     logger.error(err)
-                    self.showWarning("Error completing the wizard", "We were unable to pbtain the access token for your account, please try to run the wizard again.")
+                    self.showWarning("Error completing the wizard", "We were unable to obtain the access token for your account, please try to run the wizard again.")
             
         except Exception,err:
             logger.exception(err)
         
         
     def showWarning(self, title, text):
-        QtGui.QMessageBox.warning(self, title, text)  
+        try:
+            QMessageBox.warning(self.wizard, title, text)  
+        except Exception, err:
+            print err
         
     """
     Returns the authorization URL for Twitter or None if there was an exception
@@ -188,6 +192,7 @@ class Twitter(InputPlugin):
                     if i.coordinates['type'] == 'Point':
                         loc = {}
                         loc['plugin'] = "twitter"
+                        #this returns unicode!
                         loc['context'] = i.text
                         loc['infowindow'] = self.constructContextInfoWindow(i)                                 
                         loc['date'] = i.created_at
@@ -233,13 +238,12 @@ class Twitter(InputPlugin):
             logger.error(e)
             logger.error("Error getting locations from twitter plugin")
         return locations_list    
-    def returnPersonalInformation(self, search_params):
-        pass
-    
+
     def constructContextInfoWindow(self, tweet):
         
-        html = self.options_string['infowindow_html']
-        return html.replace("@TEXT@",tweet.text).replace("@DATE@",tweet.created_at.strftime("%a %b %d,%H:%M:%S %z")).replace("@PLUGIN@", "twitter")
+        html = unicode(self.options_string['infowindow_html'], 'utf-8')
+        #returned value also becomes unicode since tweet.text is unicode, and carries the encoding also
+        return html.replace("@TEXT@",tweet.text).replace("@DATE@",tweet.created_at.strftime("%Y-%m-%d %H:%M:%S %z")).replace("@PLUGIN@", u"twitter")
     
     def getCenterOfPolygon(self, coord):
         '''

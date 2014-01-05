@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 from models.InputPlugin import InputPlugin
 import flickrapi
 import datetime
@@ -9,7 +11,7 @@ from flickrapi.exceptions import FlickrError
 #set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('creepy_main.log')
+fh = logging.FileHandler(os.path.join(os.getcwdu(),'creepy_main.log'))
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
@@ -23,7 +25,7 @@ class Flickr(InputPlugin):
     def __init__(self):
         #Try and read the labels file
         labels_filename = self.name+".labels"
-        labels_file = os.path.join(os.getcwd(),'plugins', self.name, labels_filename)
+        labels_file = os.path.join(os.getcwdu(),'plugins', self.name, labels_filename)
         labels_config = ConfigObj(infile=labels_file)
         labels_config.create_empty=False
         try:
@@ -49,14 +51,16 @@ class Flickr(InputPlugin):
             for userid in results.find('user').items():
                 possibleTargets.append(self.getUserInfo(userid[1]))
                 
-        except FlickrError, e:
+        except Exception, e:
             logger.error(e)
             if e.message == 'Error: 1: User not found':
                 logger.info("No results for search query "+search_term+" from Flickr Plugin")
-            return None
         logger.debug(str(len(possibleTargets))+" possible targets were found matching the search query")
         #Flickr returns 2 entries per user, one with nsid and one with id , they are exactly the same
-        return [dict(t) for t in set([tuple(d.items()) for d in possibleTargets])]
+        if possibleTargets:
+            return [dict(t) for t in set([tuple(d.items()) for d in possibleTargets])]
+        else:
+            return []
     
     def getUserInfo(self, userId):
         """
@@ -96,9 +100,9 @@ class Flickr(InputPlugin):
             logger.error(e)
             return (False, "Error establishing connection to Flickr API. ")
     
-    def getPhotosByPage(self, id, page_nr):
+    def getPhotosByPage(self, userid, page_nr):
         try:
-            results = self.api.people_getPublicPhotos(user_id=id, extras="geo, date_taken", per_page=500, page=page_nr)
+            results = self.api.people_getPublicPhotos(user_id=userid, extras="geo, date_taken", per_page=500, page=page_nr)
             if results.attrib['stat'] == 'ok':
                 return results.find('photos').findall('photo')
         except Exception , err:
@@ -109,17 +113,24 @@ class Flickr(InputPlugin):
         locations = []
         if photos:
             for photo in photos:
-                if photo.attrib['latitude'] != '0':
-                    loc = {}
-                    loc['plugin'] = "flickr"
-                    photo_link = 'http://www.flickr.com/photos/%s/%s' % (photo.attrib['owner'], photo.attrib['id'])
-                    loc['context'] = 'Photo from flickr  \n Title : %s \n ' % (photo.attrib['title'])      
-                    loc['date'] = datetime.datetime.strptime(photo.attrib['datetaken'], "%Y-%m-%d %H:%M:%S")
-                    loc['lat'] = photo.attrib['latitude']
-                    loc['lon'] = photo.attrib['longitude']
-                    loc['shortName'] = "Unavailable"
-                    loc['infowindow'] = self.constructContextInfoWindow(photo_link, loc['date'])
-                    locations.append(loc)
+                try:
+                    if photo.attrib['latitude'] != '0':
+                        loc = {}
+                        loc['plugin'] = "flickr"
+                        photo_link = unicode('http://www.flickr.com/photos/%s/%s' % (photo.attrib['owner'], photo.attrib['id']), 'utf-8')
+                        title = photo.attrib['title']
+                        #If the title is a string, make it unicode
+                        if isinstance(title,str):
+                            title = title.decode('utf-8')
+                        loc['context'] = u'Photo from flickr  \n Title : %s \n ' % (title)
+                        loc['date'] = datetime.datetime.strptime(photo.attrib['datetaken'], "%Y-%m-%d %H:%M:%S")
+                        loc['lat'] = photo.attrib['latitude']
+                        loc['lon'] = photo.attrib['longitude']
+                        loc['shortName'] = "Unavailable"
+                        loc['infowindow'] = self.constructContextInfoWindow(photo_link, loc['date'])
+                        locations.append(loc)
+                except Exception,err:
+                    logger.error(err)
         return locations      
             
     def returnLocations(self, target, search_params):
@@ -148,8 +159,8 @@ class Flickr(InputPlugin):
             
             
     def constructContextInfoWindow(self, link, date):
-        html = self.options_string['infowindow_html']
-        return html.replace("@LINK@",link).replace("@DATE@",date.strftime("%a %b %d,%H:%M:%S %z")).replace("@PLUGIN@", "flickr")
+        html = unicode(self.options_string['infowindow_html'], 'utf-8')
+        return html.replace("@LINK@",link).replace("@DATE@",date.strftime("%Y-%m-%d %H:%M:%S %z")).replace("@PLUGIN@", u"flickr")
     
     def getLabelForKey(self, key):
         '''
